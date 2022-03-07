@@ -1,35 +1,57 @@
 #!/bin/python3
 import requests
+import sys
+from urllib.parse import unquote
 from bs4 import BeautifulSoup as bs
 
-def grab_content():        
-        url = "http://index-of.es/Cracking"
-        #url = "http://192.168.1.4:8000/sql"
-        headers = {
-                "User-Agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:96.0) Gecko/20100101 Firefox/96.0",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Upgrade-Insecure-Requests":"1"
-                }
+# URI = "https://cloud.piracy.wiki/KnightLiteKing/[AnimeKuro] Family Guy [x265 10-bit HEVC] [KLK]/[AnimeKuro] Family Guy Season 15 [480p] [KLK]"
 
-        links = [url]
+URI = 'https://pauladaunt.com/books/'
 
-        for link in links:
-                if(not link.endswith("/")):
-                        req = requests.get(url + "/" + link, headers = headers)
-                        print("GET {} {}".format(url + link, req.status_code))
-                        links.pop()
-                        content = req.text
-                        if(link.endswith('.pdf') or link.endswith('.chm')):
-                                f = open(link, 'wb')
-                                f.write(req._content)
-                                f.close()
-                                print("saving a file ...")
-                        else:
-                                parsed_html = bs(content, features="lxml")
-                                anchor_tags = parsed_html.body.findAll("a")
-                                #getting all the links
-                                for a in anchor_tags:
-                                        links.append(a.attrs['href'])
-                                        print('{} found a link adding it ...'.format(a.attrs['href']))
+"""
+        Signature: 
+                String -> String
+        Purpose:
+                Take a String URL and Sends an HTTP Request to that URL and parse the returned html
+                and return a string representation of that html page
+"""
 
-grab_content()
+def grab_html(url):
+        res = requests.get(url)
+        return res.text
+
+def download_file(url, content):
+        parsed_html = bs(content, features="lxml")
+        anchor_tags = parsed_html.body.findAll("a")
+
+        for a in anchor_tags:
+                if(a.attrs['href'].endswith('.mp4')):
+                        print("downloading {0}".format(a.attrs['href']))
+                        req = requests.get(url + "/" + a.attrs['href'])
+                        f = open(a.attrs['href'], 'wb')
+                        f.write(req.content)
+                        f.close()
+                else:
+                        print("Skipping {0} ...".format(a.attrs['href']))
+
+
+def main():
+        try:
+                if(len(sys.argv) != 2):
+                        print("Usage: {0} <URL>".format(sys.argv[0]))
+                        exit(-1)
+
+                url = unquote(sys.argv[1])
+                # grabing html
+                print("Scanning the Html Page ...")
+                content = grab_html(url)
+
+                # downloading the files
+                print("Starting to Download the files ...")
+                download_file(url, content)
+        except Exception:
+                print("error occured")
+        except KeyboardInterrupt:
+                print("Bye Bye ya Monsef")
+
+main()
